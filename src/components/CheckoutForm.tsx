@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Truck, Store, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import emailjs from '@emailjs/browser';
 import { useCartStore } from '@/store/cartStore';
 import { pickupTimes } from '@/data/products';
 import { toast } from 'sonner';
@@ -50,6 +51,44 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
     formState: { errors, isSubmitting },
   } = useForm<FormData>();
 
+  const sendEmailNotification = async (data: FormData) => {
+    try {
+      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+      if (!serviceId || !templateId || !publicKey) {
+        console.warn('EmailJS credentials not configured');
+        return;
+      }
+
+      // Build address string
+      const address = mode === 'delivery'
+        ? `${data.street} #${data.number}, ${data.neighborhood}`
+        : 'Recoger en local';
+
+      // Build order summary
+      const orderSummary = items
+        .map((item) => `${item.quantity}x ${item.product.name} - $${(item.product.price * item.quantity).toFixed(2)}`)
+        .join('\n');
+
+      const templateParams = {
+        customer_name: data.name,
+        address,
+        reference: mode === 'delivery' ? (data.references || 'Sin referencias') : `Hora: ${data.pickupTime || 'No especificada'}`,
+        order_summary: orderSummary,
+        total_amount: total.toFixed(2),
+        payment_method: 'Efectivo al entregar',
+      };
+
+      await emailjs.send(serviceId, templateId, templateParams, publicKey);
+      console.log('Email notification sent successfully');
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+      // Don't throw - email failure shouldn't block the order
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       // Create the order in Supabase
@@ -88,6 +127,9 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // Send email notification (non-blocking)
+      sendEmailNotification(data);
 
       clearCart();
       onClose();
