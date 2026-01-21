@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Truck, Store, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import emailjs from '@emailjs/browser';
 import { useCartStore } from '@/store/cartStore';
 import { pickupTimes } from '@/data/products';
 import { businessConfig } from '@/config/business';
@@ -60,17 +59,8 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ defaultValues: { paymentMethod: 'cash' } });
 
-  const sendEmailNotification = async (data: FormData) => {
+  const sendEmailNotification = async (data: FormData, orderTotal: number) => {
     try {
-      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-
-      if (!serviceId || !templateId || !publicKey) {
-        console.warn('EmailJS credentials not configured');
-        return;
-      }
-
       // Build address string
       const address = mode === 'delivery'
         ? `${data.street} #${data.number}, ${data.neighborhood}`
@@ -83,17 +73,25 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
 
       const paymentLabels = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
       
-      const templateParams = {
+      const emailData = {
         customer_name: data.name,
+        customer_phone: data.phone,
         address,
         reference: mode === 'delivery' ? (data.references || 'Sin referencias') : `Hora: ${data.pickupTime || 'No especificada'}`,
         order_summary: orderSummary,
-        total_amount: total.toFixed(2),
+        total_amount: orderTotal.toFixed(2),
         payment_method: paymentLabels[data.paymentMethod],
       };
 
-      await emailjs.send(serviceId, templateId, templateParams, publicKey);
-      console.log('Email notification sent successfully');
+      const response = await supabase.functions.invoke('send-order-email', {
+        body: emailData,
+      });
+
+      if (response.error) {
+        console.error('Error sending email notification:', response.error);
+      } else {
+        console.log('Email notification sent successfully');
+      }
     } catch (error) {
       console.error('Error sending email notification:', error);
       // Don't throw - email failure shouldn't block the order
@@ -139,8 +137,8 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
 
       if (itemsError) throw itemsError;
 
-      // Send email notification (non-blocking - doesn't block WhatsApp redirect)
-      sendEmailNotification(data);
+      // Send email notification via Edge Function (non-blocking)
+      sendEmailNotification(data, total);
 
       // Build WhatsApp message
       const orderSummary = items
