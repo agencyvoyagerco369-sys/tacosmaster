@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import emailjs from '@emailjs/browser';
 import { useCartStore } from '@/store/cartStore';
 import { pickupTimes } from '@/data/products';
+import { businessConfig } from '@/config/business';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,7 @@ interface FormData {
   paymentMethod: 'cash' | 'card' | 'transfer';
 }
 
-const DELIVERY_FEE = 25;
+const DELIVERY_FEE = businessConfig.deliveryFee;
 
 const paymentMethods = [
   { value: 'cash', label: 'Efectivo', icon: '💵' },
@@ -162,9 +163,7 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         `💳 *Pago:* ${paymentLabels[data.paymentMethod]}\n` +
         (data.notes ? `\n🍳 *Notas:* ${data.notes}` : '');
 
-      // WhatsApp phone number (replace with your number)
-      const whatsappNumber = '5212345678901'; // TODO: Replace with actual number
-      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+      const whatsappUrl = `https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
       clearCart();
       onClose();
