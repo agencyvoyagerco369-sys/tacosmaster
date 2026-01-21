@@ -138,18 +138,47 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
 
       if (itemsError) throw itemsError;
 
-      // Send email notification (non-blocking)
+      // Send email notification (non-blocking - doesn't block WhatsApp redirect)
       sendEmailNotification(data);
+
+      // Build WhatsApp message
+      const orderSummary = items
+        .map((item) => `• ${item.quantity}x ${item.product.name} - $${(item.product.price * item.quantity).toFixed(2)}`)
+        .join('\n');
+      
+      const paymentLabels = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
+      const address = mode === 'delivery'
+        ? `${data.street} #${data.number}, ${data.neighborhood}`
+        : 'Recoger en local';
+      
+      const whatsappMessage = `🌮 *Nuevo Pedido*\n\n` +
+        `👤 *Cliente:* ${data.name}\n` +
+        `📞 *Teléfono:* ${data.phone}\n` +
+        `📍 *Dirección:* ${address}\n` +
+        (mode === 'delivery' && data.references ? `📝 *Referencias:* ${data.references}\n` : '') +
+        (mode === 'pickup' && data.pickupTime ? `🕐 *Hora de recolección:* ${data.pickupTime}\n` : '') +
+        `\n📋 *Pedido:*\n${orderSummary}\n\n` +
+        `💰 *Total:* $${total.toFixed(2)}\n` +
+        `💳 *Pago:* ${paymentLabels[data.paymentMethod]}\n` +
+        (data.notes ? `\n🍳 *Notas:* ${data.notes}` : '');
+
+      // WhatsApp phone number (replace with your number)
+      const whatsappNumber = '5212345678901'; // TODO: Replace with actual number
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
       clearCart();
       onClose();
 
-      toast.success('¡Pedido enviado a cocina! 🎉', {
-        description: mode === 'delivery'
-          ? 'Te notificaremos cuando tu pedido esté en camino.'
-          : 'Tu pedido estará listo pronto. ¡Gracias!',
-        duration: 5000,
+      toast.success('¡Pedido enviado! 🎉', {
+        description: 'Redirigiendo a WhatsApp...',
+        duration: 3000,
       });
+
+      // Redirect to WhatsApp (always happens, regardless of email success/failure)
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 500);
+
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast.error('Error al enviar el pedido', {
