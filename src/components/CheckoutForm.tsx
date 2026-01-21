@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Truck, Store, ArrowLeft, ChevronDown } from 'lucide-react';
+import { Truck, Store, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useCartStore } from '@/store/cartStore';
 import { pickupTimes } from '@/data/products';
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CheckoutFormProps {
   onBack: () => void;
@@ -46,25 +47,63 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormData>();
 
   const onSubmit = async (data: FormData) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    console.log('Order submitted:', { mode, ...data, items, total });
-    
-    clearCart();
-    onClose();
-    
-    toast.success('¡Pedido enviado a cocina! 🎉', {
-      description: mode === 'delivery' 
-        ? 'Te notificaremos cuando tu pedido esté en camino.'
-        : 'Tu pedido estará listo pronto. ¡Gracias!',
-      duration: 5000,
-    });
+    try {
+      // Create the order in Supabase
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_name: data.name,
+          customer_phone: data.phone,
+          order_mode: mode,
+          street: mode === 'delivery' ? data.street : null,
+          house_number: mode === 'delivery' ? data.number : null,
+          neighborhood: mode === 'delivery' ? data.neighborhood : null,
+          delivery_references: mode === 'delivery' ? data.references : null,
+          pickup_time: mode === 'pickup' ? data.pickupTime : null,
+          kitchen_notes: data.notes,
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        product_name: item.product.name,
+        product_price: item.product.price,
+        quantity: item.quantity,
+        subtotal: item.product.price * item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      clearCart();
+      onClose();
+
+      toast.success('¡Pedido enviado a cocina! 🎉', {
+        description: mode === 'delivery'
+          ? 'Te notificaremos cuando tu pedido esté en camino.'
+          : 'Tu pedido estará listo pronto. ¡Gracias!',
+        duration: 5000,
+      });
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast.error('Error al enviar el pedido', {
+        description: 'Por favor intenta de nuevo.',
+      });
+    }
   };
 
   return (
