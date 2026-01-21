@@ -33,12 +33,20 @@ interface FormData {
   references?: string;
   pickupTime?: string;
   notes?: string;
+  paymentMethod: 'cash' | 'card' | 'transfer';
 }
 
 const DELIVERY_FEE = 25;
 
+const paymentMethods = [
+  { value: 'cash', label: 'Efectivo', icon: '💵' },
+  { value: 'card', label: 'Tarjeta', icon: '💳' },
+  { value: 'transfer', label: 'Transferencia', icon: '📲' },
+] as const;
+
 export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
   const [mode, setMode] = useState<'delivery' | 'pickup'>('delivery');
+  const [selectedPayment, setSelectedPayment] = useState<'cash' | 'card' | 'transfer'>('cash');
   const { getSubtotal, clearCart, items } = useCartStore();
   const subtotal = getSubtotal();
   const deliveryFee = mode === 'delivery' ? DELIVERY_FEE : 0;
@@ -49,7 +57,7 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>();
+  } = useForm<FormData>({ defaultValues: { paymentMethod: 'cash' } });
 
   const sendEmailNotification = async (data: FormData) => {
     try {
@@ -72,13 +80,15 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         .map((item) => `${item.quantity}x ${item.product.name} - $${(item.product.price * item.quantity).toFixed(2)}`)
         .join('\n');
 
+      const paymentLabels = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
+      
       const templateParams = {
         customer_name: data.name,
         address,
         reference: mode === 'delivery' ? (data.references || 'Sin referencias') : `Hora: ${data.pickupTime || 'No especificada'}`,
         order_summary: orderSummary,
         total_amount: total.toFixed(2),
-        payment_method: 'Efectivo al entregar',
+        payment_method: paymentLabels[data.paymentMethod],
       };
 
       await emailjs.send(serviceId, templateId, templateParams, publicKey);
@@ -315,6 +325,37 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
               </Select>
             </motion.div>
           )}
+
+          {/* Payment Method */}
+          <div>
+            <Label className="text-foreground mb-3 block">Método de pago</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {paymentMethods.map((method) => (
+                <button
+                  key={method.value}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPayment(method.value);
+                    setValue('paymentMethod', method.value);
+                  }}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all',
+                    selectedPayment === method.value
+                      ? 'border-primary bg-accent'
+                      : 'border-border hover:border-muted-foreground'
+                  )}
+                >
+                  <span className="text-xl">{method.icon}</span>
+                  <span className={cn(
+                    'text-xs font-medium',
+                    selectedPayment === method.value ? 'text-primary' : 'text-foreground'
+                  )}>
+                    {method.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Notes */}
           <div>
