@@ -174,7 +174,7 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
 
       // Redirect to WhatsApp (always happens, regardless of email success/failure)
       setTimeout(() => {
-        window.open(whatsappUrl, '_blank');
+        window.location.href = whatsappUrl;
       }, 500);
 
     } catch (error: any) {
