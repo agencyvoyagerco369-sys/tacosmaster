@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, ChefHat, Bell, Filter } from 'lucide-react';
+import { RefreshCw, ChefHat, Bell, Filter, LogOut } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { OrderCard } from '@/components/kitchen/OrderCard';
+import { KitchenAuth } from '@/components/kitchen/KitchenAuth';
 import { OrderStatus, ORDER_STATUS_LABELS } from '@/types/orders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +14,12 @@ import { cn } from '@/lib/utils';
 const statusFilters: (OrderStatus | 'all')[] = ['all', 'pending', 'preparing', 'ready', 'delivered', 'cancelled'];
 
 const Kitchen = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { orders, loading, error, updateOrderStatus, refetch } = useOrders();
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [lastOrderCount, setLastOrderCount] = useState(0);
 
-  const filteredOrders = orders.filter((order) => 
+  const filteredOrders = orders.filter((order) =>
     filter === 'all' ? true : order.status === filter
   );
 
@@ -33,13 +35,13 @@ const Kitchen = () => {
         description: 'Revisa la lista de pedidos pendientes.',
         duration: 5000,
       });
-      
+
       // Play notification sound (optional)
       try {
         const audio = new Audio('/notification.mp3');
         audio.volume = 0.5;
-        audio.play().catch(() => {}); // Ignore errors if audio can't play
-      } catch {}
+        audio.play().catch(() => { }); // Ignore errors if audio can't play
+      } catch { }
     }
     setLastOrderCount(orders.length);
   }, [orders.length]);
@@ -53,6 +55,18 @@ const Kitchen = () => {
     }
     return success;
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem('kitchen_authenticated');
+    localStorage.removeItem('kitchen_auth_expiry');
+    setIsAuthenticated(false);
+    toast.success('Sesión cerrada');
+  };
+
+  // Show auth screen if not authenticated
+  if (!isAuthenticated) {
+    return <KitchenAuth onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,24 +87,35 @@ const Kitchen = () => {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={refetch}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Actualizar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={refetch}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Actualizar
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-muted-foreground hover:text-destructive"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Filter Tabs */}
           <div className="flex gap-2 mt-4 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
             {statusFilters.map((status) => {
-              const count = status === 'all' 
-                ? orders.length 
+              const count = status === 'all'
+                ? orders.length
                 : orders.filter((o) => o.status === status).length;
-              
+
               return (
                 <button
                   key={status}
