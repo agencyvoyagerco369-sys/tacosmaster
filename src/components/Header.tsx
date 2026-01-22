@@ -1,6 +1,5 @@
-import { ShoppingBag, ChefHat } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 
 export const Header = () => {
@@ -14,17 +13,8 @@ export const Header = () => {
           <span className="text-2xl">🌮</span>
           <span className="font-bold text-lg text-foreground">TacoMaster</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Link
-            to="/cocina"
-            className="p-2 rounded-full hover:bg-secondary transition-colors"
-            aria-label="Panel de cocina"
-            title="Panel de Cocina"
-          >
-            <ChefHat className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
-          </Link>
-          
           <button
             onClick={openCart}
             className="relative p-2 rounded-full hover:bg-secondary transition-colors"

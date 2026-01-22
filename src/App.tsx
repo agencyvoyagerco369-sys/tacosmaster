@@ -17,7 +17,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/cocina" element={<Kitchen />} />
+          {/* Secret kitchen access - only you know this URL */}
+          <Route path="/tm-kitchen-x7k9m2q" element={<Kitchen />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
