@@ -141,6 +141,9 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
       // Send email notification via Edge Function (non-blocking)
       sendEmailNotification(data, total);
 
+      // Generate a short order number from the database ID
+      const orderNumber = order.id.toString().slice(-6).toUpperCase();
+
       // Build WhatsApp message
       const orderSummary = items
         .map((item) => `• ${item.quantity}x ${item.product.name} - $${(item.product.price * item.quantity).toFixed(2)}`)
@@ -151,16 +154,23 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         ? `${data.street} #${data.number}, ${data.neighborhood}`
         : 'Recoger en local';
 
-      const whatsappMessage = `🌮 *Nuevo Pedido*\n\n` +
+      const orderTypeEmoji = mode === 'delivery' ? '🛵' : '🏪';
+      const orderTypeLabel = mode === 'delivery' ? 'A Domicilio' : 'Para Recoger';
+
+      const whatsappMessage = `🌮 *¡Quiero Ordenar!*\n\n` +
+        `🎫 *Orden #${orderNumber}*\n` +
+        `${orderTypeEmoji} *Tipo:* ${orderTypeLabel}\n\n` +
         `👤 *Cliente:* ${data.name}\n` +
         `📞 *Teléfono:* ${data.phone}\n` +
         `📍 *Dirección:* ${address}\n` +
         (mode === 'delivery' && data.references ? `📝 *Referencias:* ${data.references}\n` : '') +
         (mode === 'pickup' && data.pickupTime ? `🕐 *Hora de recolección:* ${data.pickupTime}\n` : '') +
         `\n📋 *Pedido:*\n${orderSummary}\n\n` +
+        (mode === 'delivery' ? `🛵 *Envío:* $${deliveryFee.toFixed(2)}\n` : '') +
         `💰 *Total:* $${total.toFixed(2)}\n` +
-        `💳 *Pago:* ${paymentLabels[data.paymentMethod]}\n` +
-        (data.notes ? `\n🍳 *Notas:* ${data.notes}` : '');
+        `💳 *Método de Pago:* ${paymentLabels[data.paymentMethod]}\n` +
+        (data.notes ? `\n🍳 *Notas de cocina:* ${data.notes}\n` : '') +
+        `\n¡Gracias por tu preferencia! 🙌`;
 
       const whatsappUrl = `https://wa.me/${businessConfig.whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
