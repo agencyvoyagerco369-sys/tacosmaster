@@ -167,15 +167,20 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
       clearCart();
       onClose();
 
+      // Redirect to WhatsApp immediately (works better on mobile)
+      // Using a link click approach which is more reliable on iOS/Android
+      const link = document.createElement('a');
+      link.href = whatsappUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       toast.success('¡Pedido enviado! 🎉', {
-        description: 'Redirigiendo a WhatsApp...',
+        description: 'Abriendo WhatsApp...',
         duration: 3000,
       });
-
-      // Redirect to WhatsApp (always happens, regardless of email success/failure)
-      setTimeout(() => {
-        window.location.href = whatsappUrl;
-      }, 500);
 
     } catch (error: any) {
       console.error('Error creating order:', error);
