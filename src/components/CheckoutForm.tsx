@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import emailjs from '@emailjs/browser';
 
 interface CheckoutFormProps {
   onBack: () => void;
@@ -72,8 +73,8 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         .join('\n');
 
       const paymentLabels = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
-      
-      const emailData = {
+
+      const templateParams = {
         customer_name: data.name,
         customer_phone: data.phone,
         address,
@@ -83,15 +84,15 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
         payment_method: paymentLabels[data.paymentMethod],
       };
 
-      const response = await supabase.functions.invoke('send-order-email', {
-        body: emailData,
-      });
+      // Send email directly using EmailJS browser SDK
+      const response = await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        templateParams,
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+      );
 
-      if (response.error) {
-        console.error('Error sending email notification:', response.error);
-      } else {
-        console.log('Email notification sent successfully');
-      }
+      console.log('Email notification sent successfully:', response);
     } catch (error) {
       console.error('Error sending email notification:', error);
       // Don't throw - email failure shouldn't block the order
@@ -144,12 +145,12 @@ export const CheckoutForm = ({ onBack, onClose }: CheckoutFormProps) => {
       const orderSummary = items
         .map((item) => `• ${item.quantity}x ${item.product.name} - $${(item.product.price * item.quantity).toFixed(2)}`)
         .join('\n');
-      
+
       const paymentLabels = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
       const address = mode === 'delivery'
         ? `${data.street} #${data.number}, ${data.neighborhood}`
         : 'Recoger en local';
-      
+
       const whatsappMessage = `🌮 *Nuevo Pedido*\n\n` +
         `👤 *Cliente:* ${data.name}\n` +
         `📞 *Teléfono:* ${data.phone}\n` +
